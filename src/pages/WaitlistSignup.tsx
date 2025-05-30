@@ -1,15 +1,48 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import WaitlistCard from "@/components/WaitlistCard";
+import EmailModal from "@/components/EmailModal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useWaitlist } from "@/hooks/useWaitlist";
 
 const WaitlistSignup = () => {
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get('ref');
+  
   const [completedActions, setCompletedActions] = useState<string[]>([]);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [waitlistCount, setWaitlistCount] = useState(1247);
+  
   const { toast } = useToast();
+  const { getTotalWaitlistCount } = useWaitlist();
+
+  useEffect(() => {
+    // Load waitlist count
+    const loadWaitlistCount = async () => {
+      const count = await getTotalWaitlistCount();
+      setWaitlistCount(count);
+    };
+    loadWaitlistCount();
+  }, [getTotalWaitlistCount]);
   
   const handleActionComplete = (actionId: string) => {
+    if (actionId === 'email') {
+      setShowEmailModal(true);
+      return;
+    }
+
+    if (actionId === 'twitter') {
+      window.open('https://twitter.com/neftit', '_blank');
+    }
+
+    if (actionId === 'discord') {
+      window.open('https://discord.gg/neftit', '_blank');
+    }
+
     if (!completedActions.includes(actionId)) {
       setCompletedActions([...completedActions, actionId]);
       toast({
@@ -17,6 +50,17 @@ const WaitlistSignup = () => {
         description: "You're one step closer to early access.",
       });
     }
+  };
+
+  const handleEmailSuccess = (email: string, entry: any) => {
+    setUserEmail(email);
+    setCompletedActions([...completedActions, 'email']);
+    // Store user data in localStorage for dashboard
+    localStorage.setItem('waitlist_user', JSON.stringify({
+      email,
+      referral_code: entry.referral_code,
+      name: entry.name
+    }));
   };
 
   const allActionsCompleted = completedActions.length === 3;
@@ -32,6 +76,11 @@ const WaitlistSignup = () => {
           <p className="text-purple-200 text-lg">
             FOR THE NEFTIT WEB3 EXPERIENCE
           </p>
+          {referralCode && (
+            <p className="text-purple-300 text-sm">
+              You were invited by a friend! 🎉
+            </p>
+          )}
         </div>
 
         {/* Action Cards */}
@@ -46,7 +95,7 @@ const WaitlistSignup = () => {
           
           <WaitlistCard
             icon={<X className="w-6 h-6" />}
-            title="Follow Us On"
+            title="Follow Us On X"
             subtitle="To Stay Updated On Latest News"
             completed={completedActions.includes("twitter")}
             onClick={() => handleActionComplete("twitter")}
@@ -85,9 +134,17 @@ const WaitlistSignup = () => {
         {/* Stats */}
         <div className="text-center">
           <p className="text-purple-300">
-            <span className="text-white font-bold">1,247</span> Believers Joined Already!
+            <span className="text-white font-bold">{waitlistCount.toLocaleString()}</span> Believers Joined Already!
           </p>
         </div>
+
+        {/* Email Modal */}
+        <EmailModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          onSuccess={handleEmailSuccess}
+          referralCode={referralCode || undefined}
+        />
       </div>
     </div>
   );

@@ -1,21 +1,52 @@
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useWaitlist } from "@/hooks/useWaitlist";
 import LeaderboardItem from "@/components/LeaderboardItem";
 
 const ReferralDashboard = () => {
-  const [referralLink] = useState("https://neftit.com/waitlist?ref=ggpiglh3t");
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [userReferralCount, setUserReferralCount] = useState(0);
+  const [userRank, setUserRank] = useState("#001");
   const { toast } = useToast();
+  const { getLeaderboard } = useWaitlist();
 
-  const leaderboardData = [
-    { rank: 1, name: "LOREM IPSUM", referrals: 12 },
-    { rank: 2, name: "LOREM IPSUM", referrals: 11 },
-    { rank: 3, name: "LOREM IPSUM", referrals: 10 },
-    { rank: 4, name: "LOREM IPSUM", referrals: 9 },
-  ];
+  const referralLink = userInfo?.referral_code 
+    ? `${window.location.origin}/waitlist?ref=${userInfo.referral_code}`
+    : "https://neftit.com/waitlist";
+
+  useEffect(() => {
+    // Load user info from localStorage (set during waitlist signup)
+    const storedUser = localStorage.getItem('waitlist_user');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUserInfo(userData);
+    }
+
+    // Load leaderboard data
+    const loadLeaderboard = async () => {
+      const data = await getLeaderboard();
+      setLeaderboardData(data.slice(0, 4));
+      
+      // Find user's position and referral count
+      if (userInfo?.email) {
+        const userEntry = data.find((entry: any) => entry.email === userInfo.email);
+        if (userEntry) {
+          setUserReferralCount(userEntry.referral_count);
+          const rank = data.findIndex((entry: any) => entry.email === userInfo.email) + 1;
+          setUserRank(`#${rank.toString().padStart(3, '0')}`);
+        }
+      }
+    };
+
+    if (userInfo?.email) {
+      loadLeaderboard();
+    }
+  }, [getLeaderboard, userInfo?.email]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
@@ -31,6 +62,24 @@ const ReferralDashboard = () => {
     window.open(`https://twitter.com/intent/tweet?text=${tweetText}&url=${url}`, "_blank");
   };
 
+  // Redirect to waitlist if no user info
+  if (!userInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-white">Access Denied</h1>
+          <p className="text-purple-300">Please join the waitlist first to access your dashboard.</p>
+          <Button
+            onClick={() => window.location.href = "/waitlist"}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+          >
+            Join Waitlist
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-4">
       <div className="max-w-4xl mx-auto space-y-8 py-8">
@@ -44,8 +93,10 @@ const ReferralDashboard = () => {
                 </div>
               </div>
               <div>
-                <h2 className="text-purple-300 text-2xl font-bold">YOUR NAME HERE</h2>
-                <p className="text-purple-400">@USERNAME</p>
+                <h2 className="text-purple-300 text-2xl font-bold">
+                  {userInfo?.name || "NEFTIT BELIEVER"}
+                </h2>
+                <p className="text-purple-400">{userInfo?.email}</p>
               </div>
             </div>
             <div className="text-right">
@@ -57,7 +108,7 @@ const ReferralDashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-white text-2xl font-bold">YOUR RANK</h3>
-                  <p className="text-purple-300 text-3xl font-bold">#001</p>
+                  <p className="text-purple-300 text-3xl font-bold">{userRank}</p>
                 </div>
               </div>
             </div>
@@ -70,7 +121,9 @@ const ReferralDashboard = () => {
           <div className="space-y-4">
             <div>
               <h3 className="text-white text-xl font-bold mb-2">YOUR REFERRALS</h3>
-              <div className="text-purple-300 text-6xl font-bold">12 <span className="text-2xl">JOINED!</span></div>
+              <div className="text-purple-300 text-6xl font-bold">
+                {userReferralCount} <span className="text-2xl">JOINED!</span>
+              </div>
               <p className="text-purple-400 text-sm mt-2">INVITE MORE FRIENDS TO CLIMB ON TOP</p>
             </div>
           </div>
@@ -90,14 +143,15 @@ const ReferralDashboard = () => {
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2 font-semibold"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  SHARE ON TWITTER
+                  SHARE ON X
                 </Button>
                 <Button
                   onClick={copyToClipboard}
                   variant="outline"
                   className="flex-1 border-purple-500/30 text-purple-300 hover:bg-purple-800/20 rounded-xl py-2 font-semibold"
                 >
-                  📋 COPY LINK
+                  <Copy className="w-4 h-4 mr-2" />
+                  COPY LINK
                 </Button>
               </div>
             </div>
@@ -110,12 +164,12 @@ const ReferralDashboard = () => {
           <p className="text-purple-400 mb-6">NEFTIT TOP REFERRERS</p>
           
           <div className="space-y-3">
-            {leaderboardData.map((item) => (
+            {leaderboardData.map((item, index) => (
               <LeaderboardItem
-                key={item.rank}
-                rank={item.rank}
+                key={item.email}
+                rank={index + 1}
                 name={item.name}
-                referrals={item.referrals}
+                referrals={parseInt(item.referral_count)}
               />
             ))}
           </div>

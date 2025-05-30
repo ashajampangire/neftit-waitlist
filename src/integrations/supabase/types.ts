@@ -9,13 +9,94 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referred_email: string
+          referrer_email: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referred_email: string
+          referrer_email: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referred_email?: string
+          referrer_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_email_fkey"
+            columns: ["referred_email"]
+            isOneToOne: false
+            referencedRelation: "waitlist_entries"
+            referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_email_fkey"
+            columns: ["referrer_email"]
+            isOneToOne: false
+            referencedRelation: "waitlist_entries"
+            referencedColumns: ["email"]
+          },
+        ]
+      }
+      waitlist_entries: {
+        Row: {
+          created_at: string
+          discord_joined: boolean | null
+          email: string
+          email_connected: boolean | null
+          id: string
+          name: string | null
+          referral_code: string
+          referred_by_code: string | null
+          twitter_followed: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discord_joined?: boolean | null
+          email: string
+          email_connected?: boolean | null
+          id?: string
+          name?: string | null
+          referral_code?: string
+          referred_by_code?: string | null
+          twitter_followed?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discord_joined?: boolean | null
+          email?: string
+          email_connected?: boolean | null
+          id?: string
+          name?: string | null
+          referral_code?: string
+          referred_by_code?: string | null
+          twitter_followed?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_referral_leaderboard: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+          name: string
+          referral_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
