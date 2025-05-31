@@ -36,11 +36,11 @@ const WaitlistSignup = () => {
     }
 
     if (actionId === 'twitter') {
-      window.open('https://twitter.com/neftit', '_blank');
+      window.open('https://x.com/neftitxyz', '_blank');
     }
 
     if (actionId === 'discord') {
-      window.open('https://discord.gg/neftit', '_blank');
+      window.open('https://t.co/yXPDJ1NJJi', '_blank');
     }
 
     if (!completedActions.includes(actionId)) {
