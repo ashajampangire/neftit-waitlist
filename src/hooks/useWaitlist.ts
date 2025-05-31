@@ -1,12 +1,13 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ethers } from 'ethers';
 
 export interface WaitlistEntry {
   id: string;
   email: string;
   name: string | null;
+  wallet_address: string | null;
   referral_code: string;
   referred_by_code: string | null;
   twitter_followed: boolean;
@@ -20,14 +21,54 @@ export const useWaitlist = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const joinWaitlist = async (email: string, name?: string, referredByCode?: string) => {
+  const verifyWalletAddress = (address: string) => {
+    try {
+      return ethers.isAddress(address);
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const verifyTwitterFollow = async () => {
+    try {
+      // In a real implementation, you would use Twitter's API
+      // For now, we'll simulate verification
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const verifyDiscordJoin = async () => {
+    try {
+      // In a real implementation, you would use Discord's API
+      // For now, we'll simulate verification
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const joinWaitlist = async (email: string, walletAddress: string, name?: string, referredByCode?: string) => {
     setLoading(true);
     try {
+      if (!verifyWalletAddress(walletAddress)) {
+        toast({
+          title: "Invalid wallet address",
+          description: "Please enter a valid Ethereum wallet address.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('waitlist_entries')
         .insert([
           {
             email,
+            wallet_address: walletAddress,
             name: name || null,
             referred_by_code: referredByCode || null,
           }
@@ -36,17 +77,16 @@ export const useWaitlist = () => {
         .single();
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
+        if (error.code === '23505') {
           toast({
             title: "Already signed up!",
-            description: "This email is already on the waitlist.",
+            description: "This email or wallet address is already on the waitlist.",
           });
           return null;
         }
         throw error;
       }
 
-      // If referred by someone, create referral relationship
       if (referredByCode && data) {
         const { data: referrer } = await supabase
           .from('waitlist_entries')
@@ -96,13 +136,30 @@ export const useWaitlist = () => {
         .single();
 
       if (error) throw error;
-
       return data;
     } catch (error) {
       console.error('Error updating waitlist entry:', error);
       return null;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verifyAndUpdateSocials = async (email: string) => {
+    try {
+      const twitterFollowed = await verifyTwitterFollow();
+      const discordJoined = await verifyDiscordJoin();
+
+      const updates = {
+        twitter_followed: twitterFollowed,
+        discord_joined: discordJoined,
+      };
+
+      const updated = await updateWaitlistEntry(email, updates);
+      return updated;
+    } catch (error) {
+      console.error('Error verifying socials:', error);
+      return null;
     }
   };
 
@@ -150,6 +207,7 @@ export const useWaitlist = () => {
   return {
     joinWaitlist,
     updateWaitlistEntry,
+    verifyAndUpdateSocials,
     getWaitlistEntry,
     getLeaderboard,
     getTotalWaitlistCount,

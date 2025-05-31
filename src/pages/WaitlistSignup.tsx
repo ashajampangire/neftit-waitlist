@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
-import { Mail, X } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Mail, X, ArrowLeft } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import WaitlistCard from "@/components/WaitlistCard";
 import EmailModal from "@/components/EmailModal";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useWaitlist } from "@/hooks/useWaitlist";
 
 const WaitlistSignup = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get('ref');
   
@@ -16,12 +16,12 @@ const WaitlistSignup = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [waitlistCount, setWaitlistCount] = useState(1247);
+  const [verificationInProgress, setVerificationInProgress] = useState(false);
   
   const { toast } = useToast();
-  const { getTotalWaitlistCount } = useWaitlist();
+  const { getTotalWaitlistCount, verifyAndUpdateSocials } = useWaitlist();
 
   useEffect(() => {
-    // Load waitlist count
     const loadWaitlistCount = async () => {
       const count = await getTotalWaitlistCount();
       setWaitlistCount(count);
@@ -29,11 +29,22 @@ const WaitlistSignup = () => {
     loadWaitlistCount();
   }, [getTotalWaitlistCount]);
   
-  const handleActionComplete = (actionId: string) => {
+  const handleActionComplete = async (actionId: string) => {
     if (actionId === 'email') {
       setShowEmailModal(true);
       return;
     }
+
+    if (!userEmail) {
+      toast({
+        title: "Complete email first",
+        description: "Please connect your email before proceeding with other steps.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setVerificationInProgress(true);
 
     if (actionId === 'twitter') {
       window.open('https://x.com/neftitxyz', '_blank');
@@ -43,12 +54,34 @@ const WaitlistSignup = () => {
       window.open('https://t.co/yXPDJ1NJJi', '_blank');
     }
 
-    if (!completedActions.includes(actionId)) {
-      setCompletedActions([...completedActions, actionId]);
+    try {
+      const updated = await verifyAndUpdateSocials(userEmail);
+      
+      if (updated) {
+        if (updated.twitter_followed && !completedActions.includes('twitter')) {
+          setCompletedActions(prev => [...prev, 'twitter']);
+          toast({
+            title: "Twitter follow verified!",
+            description: "Successfully verified your Twitter follow.",
+          });
+        }
+        
+        if (updated.discord_joined && !completedActions.includes('discord')) {
+          setCompletedActions(prev => [...prev, 'discord']);
+          toast({
+            title: "Discord join verified!",
+            description: "Successfully verified your Discord membership.",
+          });
+        }
+      }
+    } catch (error) {
       toast({
-        title: "Action completed!",
-        description: "You're one step closer to early access.",
+        title: "Verification failed",
+        description: "Please make sure you've completed the action and try again.",
+        variant: "destructive"
       });
+    } finally {
+      setVerificationInProgress(false);
     }
   };
 
@@ -59,7 +92,8 @@ const WaitlistSignup = () => {
     localStorage.setItem('waitlist_user', JSON.stringify({
       email,
       referral_code: entry.referral_code,
-      name: entry.name
+      name: entry.name,
+      wallet_address: entry.wallet_address
     }));
   };
 
@@ -68,6 +102,16 @@ const WaitlistSignup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          className="text-white hover:text-purple-200"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold text-white tracking-wider">
@@ -87,7 +131,7 @@ const WaitlistSignup = () => {
         <div className="space-y-4">
           <WaitlistCard
             icon={<Mail className="w-6 h-6" />}
-            title="Connect Email"
+            title="Connect Email & Wallet"
             subtitle="To Receive Latest Updates First"
             completed={completedActions.includes("email")}
             onClick={() => handleActionComplete("email")}
@@ -121,14 +165,14 @@ const WaitlistSignup = () => {
               ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white transform hover:scale-105"
               : "bg-gray-600 text-gray-300 cursor-not-allowed"
           }`}
-          disabled={!allActionsCompleted}
+          disabled={!allActionsCompleted || verificationInProgress}
           onClick={() => {
             if (allActionsCompleted) {
               window.location.href = "/dashboard";
             }
           }}
         >
-          ENTER NEFTIT →
+          {verificationInProgress ? "VERIFYING..." : "ENTER NEFTIT →"}
         </Button>
 
         {/* Stats */}

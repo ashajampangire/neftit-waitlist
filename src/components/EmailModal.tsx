@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +14,20 @@ interface EmailModalProps {
 const EmailModal = ({ isOpen, onClose, onSuccess, referralCode }: EmailModalProps) => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const { joinWaitlist, loading } = useWaitlist();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || !walletAddress.trim()) return;
 
-    const entry = await joinWaitlist(email.trim(), name.trim() || undefined, referralCode);
+    const entry = await joinWaitlist(email.trim(), walletAddress.trim(), name.trim() || undefined, referralCode);
     if (entry) {
       onSuccess(email.trim(), entry);
       onClose();
       setEmail("");
       setName("");
+      setWalletAddress("");
     }
   };
 
@@ -58,6 +59,16 @@ const EmailModal = ({ isOpen, onClose, onSuccess, referralCode }: EmailModalProp
               className="bg-black/20 border-purple-500/20 text-white placeholder-purple-300"
             />
           </div>
+          <div>
+            <Input
+              type="text"
+              placeholder="Your wallet address"
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value)}
+              className="bg-black/20 border-purple-500/20 text-white placeholder-purple-300"
+              required
+            />
+          </div>
           <div className="flex space-x-3">
             <Button
               type="button"
@@ -69,7 +80,7 @@ const EmailModal = ({ isOpen, onClose, onSuccess, referralCode }: EmailModalProp
             </Button>
             <Button
               type="submit"
-              disabled={loading || !email.trim()}
+              disabled={loading || !email.trim() || !walletAddress.trim()}
               className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
             >
               {loading ? "Joining..." : "Join Waitlist"}
